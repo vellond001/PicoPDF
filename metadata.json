@@ -1,0 +1,11 @@
+{
+  "name": "PicoPDF v1.0",
+  "description": "An advanced PDF management suite featuring state-aware processing, OCR, LLM-powered summarization, and batch organization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "PDF Rendering",
+    "OCR",
+    "LLM Integration",
+    "Self-Healing Architecture"
+  ]
+}
