@@ -10,6 +10,7 @@ interface SidebarProps {
   currentPage: number;
   onPageChange: (page: number) => void;
   onTotalPages: (total: number) => void;
+  onOpenPanel: (panel: 'settings' | 'organiser' | 'token' | 'metrics' | 'about') => void;
 }
 
 export default function Sidebar({ 
@@ -17,12 +18,16 @@ export default function Sidebar({
   file, 
   currentPage, 
   onPageChange,
-  onTotalPages
+  onTotalPages,
+  onOpenPanel
 }: SidebarProps) {
   const [thumbnails, setThumbnails] = useState<string[]>([]);
   const [metadata, setMetadata] = useState<any>(null);
 
   useEffect(() => {
+    let active = true;
+    let localPdf: pdfjs.PDFDocumentProxy | null = null;
+
     const generate = async () => {
       if (!file) {
         setThumbnails([]);
@@ -32,24 +37,38 @@ export default function Sidebar({
 
       try {
         const pdf = await pdfService.loadPDF(file);
+        localPdf = pdf;
+        
+        if (!active) return;
+        
         onTotalPages(pdf.numPages);
         
         // Generate thumbnails for first 10 pages for performance
         const limit = Math.min(pdf.numPages, 20);
         const thumbs: string[] = [];
         for (let i = 1; i <= limit; i++) {
+          if (!active) break;
           const canvas = await pdfService.renderPage(pdf, i, 0.2); // Small scale for thumbs
           thumbs.push(canvas.toDataURL());
         }
+        
+        if (!active) return;
         setThumbnails(thumbs);
         
         const meta = await (pdf as any).getMetadata();
-        setMetadata(meta?.info);
+        if (active) setMetadata(meta?.info);
       } catch (e) {
         console.error(e);
       }
     };
     generate();
+    
+    return () => {
+      active = false;
+      if (localPdf) {
+        localPdf.destroy();
+      }
+    };
   }, [file]);
 
   return (
@@ -67,6 +86,24 @@ export default function Sidebar({
             Page Matrix
           </h3>
         </div>
+      </div>
+
+      <div className="p-4 border-b border-white/5 space-y-1 flex flex-col shrink-0">
+        <button onClick={() => onOpenPanel('organiser')} className="w-full text-left px-3 py-2 text-[10px] md:text-xs uppercase tracking-widest text-[#D1D1D1] hover:text-black hover:bg-gold rounded-sm transition-all border border-transparent hover:border-gold/50 cursor-pointer">
+          Auto-Organiser
+        </button>
+        <button onClick={() => onOpenPanel('token')} className="w-full text-left px-3 py-2 text-[10px] md:text-xs uppercase tracking-widest text-[#D1D1D1] hover:text-black hover:bg-gold rounded-sm transition-all border border-transparent hover:border-gold/50 cursor-pointer">
+          Token Ledger
+        </button>
+        <button onClick={() => onOpenPanel('metrics')} className="w-full text-left px-3 py-2 text-[10px] md:text-xs uppercase tracking-widest text-[#D1D1D1] hover:text-black hover:bg-gold rounded-sm transition-all border border-transparent hover:border-gold/50 cursor-pointer">
+          Diagnostics
+        </button>
+        <button onClick={() => onOpenPanel('settings')} className="w-full text-left px-3 py-2 text-[10px] md:text-xs uppercase tracking-widest text-[#D1D1D1] hover:text-black hover:bg-gold rounded-sm transition-all border border-transparent hover:border-gold/50 cursor-pointer">
+          API Settings
+        </button>
+        <button onClick={() => onOpenPanel('about')} className="w-full text-left px-3 py-2 text-[10px] md:text-xs uppercase tracking-widest text-[#D1D1D1] hover:text-black hover:bg-gold rounded-sm transition-all border border-transparent hover:border-gold/50 cursor-pointer">
+          About & Legal
+        </button>
       </div>
 
       <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4 md:space-y-6 custom-scrollbar bg-[#0F0F11]">

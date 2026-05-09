@@ -33,7 +33,12 @@ import AboutOverlay from './components/AboutOverlay';
 import { cn } from './lib/utils';
 
 export default function App() {
-  const [file, setFile] = useState<ArrayBuffer | null>(null);
+  const [history, setHistory] = useState<{ past: ArrayBuffer[], present: ArrayBuffer | null, future: ArrayBuffer[] }>({
+    past: [],
+    present: null,
+    future: []
+  });
+  const file = history.present;
   const [fileName, setFileName] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -68,44 +73,205 @@ export default function App() {
   }, []);
 
   const handleFileLoad = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      const buffer = await file.arrayBuffer();
-      setFile(buffer);
+    const fileLoad = e.target.files?.[0];
+    if (fileLoad) {
+      setFileName(fileLoad.name);
+      const buffer = await fileLoad.arrayBuffer();
+      setHistory({ past: [], present: buffer, future: [] });
       setCurrentPage(1);
       awareness.recordSuccess('UI-file-load');
     }
+    // Clear input so the same file can be selected again
+    e.target.value = '';
   }, []);
 
   const onFileUpdate = useCallback((newBuffer: Uint8Array) => {
-    setFile(newBuffer.buffer as ArrayBuffer);
+    setHistory(prev => ({
+      past: prev.present ? [...prev.past, prev.present].slice(-20) : prev.past,
+      present: newBuffer.buffer as ArrayBuffer,
+      future: []
+    }));
   }, []);
+
+  const undo = useCallback(() => {
+    setHistory(prev => {
+      if (prev.past.length === 0 || !prev.present) return prev;
+      const newPast = [...prev.past];
+      const previous = newPast.pop()!;
+      return {
+        past: newPast,
+        present: previous,
+        future: [prev.present, ...prev.future]
+      };
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    setHistory(prev => {
+      if (prev.future.length === 0 || !prev.present) return prev;
+      const newFuture = [...prev.future];
+      const next = newFuture.shift()!;
+      return {
+        past: [...prev.past, prev.present],
+        present: next,
+        future: newFuture
+      };
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalPaste = async (e: ClipboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const pasteFile = e.clipboardData?.files?.[0];
+      if (pasteFile && pasteFile.type === 'application/pdf') {
+        setFileName(pasteFile.name);
+        const buffer = await pasteFile.arrayBuffer();
+        setHistory({ past: [], present: buffer, future: [] });
+        setCurrentPage(1);
+        awareness.recordSuccess('UI-file-paste');
+      }
+    };
+    window.addEventListener('paste', handleGlobalPaste);
+    return () => window.removeEventListener('paste', handleGlobalPaste);
+  }, []);
+
+  const handleExport = useCallback(() => {
+    if (!file) return;
+    const blob = new Blob([file], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName || 'document.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [file, fileName]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        if (e.key === 'Escape') {
+          e.target.blur();
+        }
+        return;
+      }
+
+      const cmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      if (e.key === 'Escape') {
+        setShowSettings(false);
+        setShowAbout(false);
+        setShowOrganiser(false);
+        setShowTokenPanel(false);
+        setShowMetrics(false);
+      }
+
+      if (e.key === 'ArrowLeft') {
+        setCurrentPage(prev => Math.max(1, prev - 1));
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        setCurrentPage(prev => Math.min(totalPages, prev + 1));
+        return;
+      }
+
+      if (cmdOrCtrl) {
+        switch (e.key.toLowerCase()) {
+          case 'c':
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+            if (file) {
+              e.preventDefault();
+              try {
+                const blob = new Blob([file], { type: 'application/pdf' });
+                // Some browsers support this:
+                const item = new ClipboardItem({ 'application/pdf': blob });
+                navigator.clipboard.write([item]).catch(() => {
+                  console.log('PDF copy via ClipboardItem not supported in this browser context.');
+                });
+                awareness.recordSuccess('UI-file-copy');
+              } catch (err) {
+                console.log('Failed to copy PDF');
+              }
+            }
+            break;
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              redo();
+            } else {
+              undo();
+            }
+            break;
+          case 'y':
+            e.preventDefault();
+            redo();
+            break;
+          case 'o':
+            e.preventDefault();
+            document.getElementById('global-file-upload')?.click();
+            break;
+          case 'b':
+            e.preventDefault();
+            setSidebarOpen(prev => !prev);
+            break;
+          case 's':
+            e.preventDefault();
+            handleExport();
+            break;
+          case ',':
+            e.preventDefault();
+            setShowSettings(true);
+            break;
+          case '/':
+            e.preventDefault();
+            setShowAbout(true);
+            break;
+          case '=':
+          case '+':
+            e.preventDefault();
+            setScale(prev => Math.min(4, prev + 0.25));
+            break;
+          case '-':
+            e.preventDefault();
+            setScale(prev => Math.max(0.25, prev - 0.25));
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleExport]);
 
   return (
     <div className={cn(
       "flex h-dvh w-dvw flex-col bg-dark-bg text-[#D1D1D1] font-sans overflow-hidden",
       isLiteMode && "lite-mode"
-    )}>
+    )} onKeyDown={(e) => {
+      // Basic keyboard shortcuts hook if needed, but useEffect is better for global
+    }}>
+      {/* Global File Input */}
+      <input id="global-file-upload" type="file" className="hidden" accept=".pdf" onChange={handleFileLoad} />
+      
       {/* Header */}
-      <header className="h-16 md:h-20 border-b border-border-gold flex items-center justify-between px-4 md:px-10 bg-panel z-20 shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="h-16 md:h-20 border-b border-border-gold flex items-center justify-between px-4 md:px-10 bg-panel z-20 shrink-0 w-full max-w-full">
+        <div className="flex items-center gap-2 md:gap-4 shrink-0">
           <button 
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 md:p-2 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm transition-all"
+            className="p-1.5 md:p-2 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm transition-all shrink-0"
+            title="Toggle Sidebar (Cmd/Ctrl + B)"
           >
             <Layers size={18} className="md:w-5 md:h-5" />
           </button>
-          <div className="flex flex-col">
-            <span className="text-[8px] md:text-[10px] tracking-[0.3em] uppercase text-gold opacity-60">System Audit Protocol</span>
-            <h1 className="serif text-xl md:text-3xl font-semibold tracking-wide text-white flex items-center gap-2 md:gap-3">
-              PicoPDF <span className="text-xs md:text-sm italic font-light opacity-50">v1.0.4</span>
+          <div className="flex flex-col truncate">
+            <span className="text-[8px] md:text-[10px] tracking-[0.3em] uppercase text-gold opacity-60 truncate block">System Audit Protocol</span>
+            <h1 className="serif text-lg md:text-3xl font-semibold tracking-wide text-white flex items-center gap-1 md:gap-3 truncate">
+              PicoPDF <span className="text-xs md:text-sm italic font-light opacity-50 shrink-0">v1.0.4</span>
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-8">
-          <div className="hidden sm:flex text-right items-center gap-3">
+        <div className="flex items-center gap-4 md:gap-8 min-w-0 flex-1 justify-end ml-4">
+          <div className="hidden sm:flex text-right items-center gap-3 shrink-0">
             <div>
               <p className="text-[10px] tracking-widest uppercase opacity-40">Health</p>
               <p className="serif text-xl md:text-2xl text-gold">{health}%</p>
@@ -113,20 +279,11 @@ export default function App() {
             <Activity size={20} className={cn(health < 50 ? "status-alert animate-pulse" : "status-check")} />
           </div>
           
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-4 overflow-x-auto custom-scrollbar md:overflow-visible py-1 pr-1">
             <button 
-              onClick={() => {
-                if (!file) return;
-                const blob = new Blob([file], { type: 'application/pdf' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName || 'document.pdf';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              className="border border-gold px-3 md:px-6 py-1.5 md:py-2 text-gold text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] uppercase hover:bg-gold hover:text-black transition-colors rounded-sm flex items-center gap-2"
-              title="Export Current Artifact"
+              onClick={handleExport}
+              className="shrink-0 border border-gold px-3 md:px-6 py-1.5 md:py-2 text-gold text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.3em] uppercase hover:bg-gold hover:text-black transition-colors rounded-sm flex items-center gap-2"
+              title="Export Current Artifact (Cmd/Ctrl + S)"
             >
               <Download size={12} className="md:w-3.5 md:h-3.5" />
               <span className="hidden xs:inline">Export</span>
@@ -135,7 +292,7 @@ export default function App() {
             
             <button 
               onClick={() => setShowOrganiser(true)}
-              className="border border-border-gold p-1.5 md:p-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm"
+              className="shrink-0 border border-border-gold p-1.5 md:p-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm"
               title="Auto-Organiser & Batch"
             >
               <FolderTree size={18} className="md:w-5 md:h-5" />
@@ -143,7 +300,7 @@ export default function App() {
 
             <button 
               onClick={() => setShowTokenPanel(true)}
-              className="border border-border-gold p-1.5 md:p-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm"
+              className="shrink-0 border border-border-gold p-1.5 md:p-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm"
               title="Token Ledger"
             >
               <Database size={18} className="md:w-5 md:h-5" />
@@ -151,23 +308,23 @@ export default function App() {
 
             <button 
               onClick={() => setShowMetrics(!showMetrics)}
-              className="border border-border-gold p-1.5 md:p-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm"
+              className="shrink-0 border border-border-gold p-1.5 md:p-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm"
               title="Diagnostics"
             >
               <Cpu size={18} className="md:w-5 md:h-5" />
             </button>
             <button 
               onClick={() => setShowSettings(true)}
-              className="border border-border-gold px-2 py-1.5 md:px-3 md:py-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm flex items-center gap-2"
-              title="API Settings"
+              className="shrink-0 border border-border-gold px-2 py-1.5 md:px-3 md:py-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm flex items-center gap-2"
+              title="API Settings (Cmd/Ctrl + ,)"
             >
               <Settings size={18} className="md:w-5 md:h-5" />
               <span className="hidden sm:inline text-xs uppercase tracking-widest font-bold">Settings</span>
             </button>
             <button 
               onClick={() => setShowAbout(true)}
-              className="border border-border-gold px-2 py-1.5 md:px-3 md:py-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm flex items-center gap-2"
-              title="About & Legal"
+              className="shrink-0 border border-border-gold px-2 py-1.5 md:px-3 md:py-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm flex items-center gap-2"
+              title="About & Legal (Cmd/Ctrl + /)"
             >
               <Info size={18} className="md:w-5 md:h-5" />
               <span className="hidden sm:inline text-xs uppercase tracking-widest font-bold">About</span>
@@ -186,6 +343,15 @@ export default function App() {
           currentPage={currentPage}
           onPageChange={setCurrentPage}
           onTotalPages={setTotalPages}
+          onOpenPanel={(panel) => {
+            if (panel === 'settings') setShowSettings(true);
+            if (panel === 'organiser') setShowOrganiser(true);
+            if (panel === 'token') setShowTokenPanel(true);
+            if (panel === 'metrics') setShowMetrics(true);
+            if (panel === 'about') setShowAbout(true);
+            // On mobile, close sidebar after opening panel
+            if (window.innerWidth < 768) setSidebarOpen(false);
+          }}
         />
 
         {/* Viewer Area */}
@@ -218,7 +384,7 @@ export default function App() {
                 <div className="text-center p-12 border-2 border-dashed border-border-gold opacity-30 rounded-xl space-y-4">
                   <FileText size={48} className="mx-auto text-gold" />
                   <p className="serif text-xl italic text-white">No PDF Under Assessment</p>
-                  <label className="block px-8 py-3 border border-gold text-gold text-[10px] tracking-widest uppercase hover:bg-gold hover:text-black cursor-pointer transition-all">
+                  <label className="block px-8 py-3 border border-gold text-gold text-[10px] tracking-widest uppercase hover:bg-gold hover:text-black cursor-pointer transition-all" title="Initialize Protocol (Cmd/Ctrl + O)">
                     Initialize Protocol
                     <input type="file" className="hidden" accept=".pdf" onChange={handleFileLoad} />
                   </label>

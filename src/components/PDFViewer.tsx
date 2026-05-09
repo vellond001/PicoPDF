@@ -4,6 +4,7 @@ import { ocrService } from '../services/ocr';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, Type, Move } from 'lucide-react';
 import * as pdfjs from 'pdfjs-dist';
+import { cn } from '../lib/utils';
 
 interface PDFViewerProps {
   file: ArrayBuffer;
@@ -86,19 +87,34 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate }: PDF
   };
 
   useEffect(() => {
+    let active = true;
+    let localPdf: pdfjs.PDFDocumentProxy | null = null;
+    
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
         const loadedPdf = await pdfService.loadPDF(file);
-        setPdf(loadedPdf);
+        localPdf = loadedPdf;
+        if (active) {
+          setPdf(loadedPdf);
+        } else {
+          loadedPdf.destroy();
+        }
       } catch (e: any) {
-        setError(e.message);
+        if (active) setError(e.message);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     load();
+    
+    return () => {
+      active = false;
+      if (localPdf) {
+        localPdf.destroy();
+      }
+    };
   }, [file]);
 
   useEffect(() => {
@@ -165,7 +181,3 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate }: PDF
   );
 }
 
-// Inline Cn helper to avoid import loop in minimal turns
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
-}

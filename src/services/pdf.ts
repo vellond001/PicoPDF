@@ -47,6 +47,8 @@ class PDFService {
         viewport: viewport,
         canvas: canvas as any // Add canvas to satisfy TS types in some versions
       } as any).promise;
+      
+      page.cleanup();
 
       awareness.recordSuccess('pdf-render');
       return canvas;
@@ -192,13 +194,16 @@ class PDFService {
       const pdfDoc = await PDFDocument.load(data);
       const page = pdfDoc.getPages()[pageNum - 1];
       
-      for (let i = 0; i < paths.length - 1; i++) {
-        page.drawLine({
-          start: { x: paths[i].x, y: paths[i].y },
-          end: { x: paths[i+1].x, y: paths[i+1].y },
-          thickness: 2,
-          color: rgb(1, 0, 0),
-          opacity: 0.5
+      if (paths.length >= 2) {
+        let svgPath = `M ${paths[0].x} ${paths[0].y} `;
+        for (let i = 1; i < paths.length; i++) {
+          svgPath += `L ${paths[i].x} ${paths[i].y} `;
+        }
+        
+        page.drawSvgPath(svgPath, {
+          borderColor: rgb(1, 0, 0),
+          borderWidth: 2,
+          borderOpacity: 0.5
         });
       }
 

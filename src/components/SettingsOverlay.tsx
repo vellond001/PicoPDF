@@ -439,8 +439,8 @@ export default function SettingsOverlay({ onClose }: { onClose: () => void }) {
                     if (stat) acc[item.key].tokens += stat.prompt + stat.completion;
                     
                     return acc;
-                  }, {} as Record<string, { provider: ProviderKey, items: typeof chain, freeCount: number, errorCount: number, tokens: number }>)
-                ).map(([key, group], gIdx) => (
+                  }, {} as Record<string, any>)
+                ).map(([key, group]: [string, any], gIdx) => (
                   <div key={key} className="border border-border-gold/30 bg-black/40 p-4 space-y-3">
                     <div className="flex justify-between items-center border-b border-border-gold/20 pb-2">
                       <div className="flex flex-col">
@@ -477,7 +477,7 @@ export default function SettingsOverlay({ onClose }: { onClose: () => void }) {
                       </div>
                       <div className="text-blue-400 flex flex-col">
                         <span className="opacity-70 text-[8px]">Chain Tokens Used</span>
-                        <span>{Object.values(tokenStats).reduce((sum, s) => sum + s.prompt + s.completion, 0)}</span>
+                        <span>{Object.values(tokenStats).reduce((sum, s: any) => sum + s.prompt + s.completion, 0)}</span>
                       </div>
                     </div>
 

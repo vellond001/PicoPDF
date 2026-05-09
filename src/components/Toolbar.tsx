@@ -97,6 +97,7 @@ export default function Toolbar({
             onClick={() => onPageChange(Math.max(1, currentPage - 1))}
             className="p-1 md:p-1.5 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm disabled:opacity-10 transition-all font-mono text-[9px] md:text-[10px]"
             disabled={currentPage <= 1 || !file}
+            title="Previous Page (Arrow Left)"
           >
             PREV
           </button>
@@ -107,6 +108,7 @@ export default function Toolbar({
             onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
             className="p-1 md:p-1.5 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm disabled:opacity-10 transition-all font-mono text-[9px] md:text-[10px]"
             disabled={currentPage >= totalPages || !file}
+            title="Next Page (Arrow Right)"
           >
             NEXT
           </button>
@@ -205,6 +207,7 @@ export default function Toolbar({
           <button 
             onClick={() => onScaleChange(Math.max(0.25, scale - 0.25))}
             className="p-1.5 md:p-2 text-gold hover:bg-gold/10 transition-all border-r border-border-gold/30"
+            title="Zoom Out (Cmd/Ctrl + -)"
           >
             <ZoomOut size={15} />
           </button>
@@ -214,6 +217,7 @@ export default function Toolbar({
           <button 
             onClick={() => onScaleChange(Math.min(4, scale + 0.25))}
             className="p-1.5 md:p-2 text-gold hover:bg-gold/10 transition-all border-l border-border-gold/30"
+            title="Zoom In (Cmd/Ctrl + +)"
           >
             <ZoomIn size={15} />
           </button>
