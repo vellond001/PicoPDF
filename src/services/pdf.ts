@@ -1,11 +1,13 @@
 import * as pdfjs from 'pdfjs-dist';
-import pdfWorkerURL from 'pdfjs-dist/build/pdf.worker.mjs?url';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { awareness } from './awareness';
 import { RetryManager } from './retry';
 
 // Set up worker
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerURL;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 export type PDFMetadata = {
   title?: string;
@@ -95,6 +97,81 @@ class PDFService {
 
       awareness.recordSuccess('pdf-split');
       return results;
+    });
+  }
+
+  async replaceText(
+    data: ArrayBuffer, 
+    pageNum: number, 
+    text: string, 
+    box: { x: number, y: number, w: number, h: number }, 
+    fontSize = 12,
+    color = { r: 0, g: 0, b: 0 },
+    fontFamily = 'sans-serif',
+    formatting = { bold: false, italic: false, underline: false, bgColor: { r: 255, g: 255, b: 255, a: 1 } }
+  ): Promise<Uint8Array> {
+    return this.retry.run(async () => {
+      const pdfDoc = await PDFDocument.load(data);
+      
+      let fontType = StandardFonts.Helvetica;
+      const lowerFont = fontFamily.toLowerCase();
+      
+      const isSerif = lowerFont.includes('times') || (lowerFont.includes('serif') && !lowerFont.includes('sans'));
+      const isMono = lowerFont.includes('courier') || lowerFont.includes('mono');
+      
+      if (isSerif) {
+        if (formatting.bold && formatting.italic) fontType = StandardFonts.TimesRomanBoldItalic;
+        else if (formatting.bold) fontType = StandardFonts.TimesRomanBold;
+        else if (formatting.italic) fontType = StandardFonts.TimesRomanItalic;
+        else fontType = StandardFonts.TimesRoman;
+      } else if (isMono) {
+        if (formatting.bold && formatting.italic) fontType = StandardFonts.CourierBoldOblique;
+        else if (formatting.bold) fontType = StandardFonts.CourierBold;
+        else if (formatting.italic) fontType = StandardFonts.CourierOblique;
+        else fontType = StandardFonts.Courier;
+      } else {
+        if (formatting.bold && formatting.italic) fontType = StandardFonts.HelveticaBoldOblique;
+        else if (formatting.bold) fontType = StandardFonts.HelveticaBold;
+        else if (formatting.italic) fontType = StandardFonts.HelveticaOblique;
+        else fontType = StandardFonts.Helvetica;
+      }
+
+      const font = await pdfDoc.embedFont(fontType);
+      
+      const page = pdfDoc.getPages()[pageNum - 1];
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      
+      // Draw background rectangle to erase old text and fill new
+      page.drawRectangle({
+        x: box.x,
+        y: box.y,
+        width: Math.max(box.w, textWidth + 4),
+        height: box.h,
+        color: rgb(formatting.bgColor.r / 255, formatting.bgColor.g / 255, formatting.bgColor.b / 255),
+        opacity: formatting.bgColor.a
+      });
+
+      // Draw new text
+      page.drawText(text, {
+        x: box.x,
+        y: box.y + 2, // slight offset for font baseline
+        size: fontSize,
+        font,
+        color: rgb(color.r / 255, color.g / 255, color.b / 255)
+      });
+      
+      if (formatting.underline) {
+        page.drawLine({
+          start: { x: box.x, y: box.y + Math.max(1, fontSize * 0.1) }, 
+          end: { x: box.x + textWidth, y: box.y + Math.max(1, fontSize * 0.1) },
+          thickness: Math.max(1, fontSize * 0.05),
+          color: rgb(color.r / 255, color.g / 255, color.b / 255)
+        });
+      }
+
+      const bytes = await pdfDoc.save();
+      awareness.recordSuccess('pdf-replace-text');
+      return bytes;
     });
   }
 

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, Send, Bot, User, Sparkles, X, Maximize2, Minimize2, Minus, ChevronDown, Cpu } from 'lucide-react';
 import { llmService } from '../services/llm';
 import { pdfService } from '../services/pdf';
+import * as pdfjs from 'pdfjs-dist';
 import { cn } from '../lib/utils';
 
 interface AIChatProps {
@@ -44,23 +45,71 @@ export default function AIChat({ file }: AIChatProps) {
 
   // Extract text for context
   useEffect(() => {
+    let active = true;
+    let localPdf: pdfjs.PDFDocumentProxy | null = null;
+    
     const extract = async () => {
       if (!file) return;
       try {
         const pdf = await pdfService.loadPDF(file);
+        localPdf = pdf;
+        if (!active) return;
+        
         let text = '';
         for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+          if (!active) break;
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
           text += content.items.map((it: any) => it.str).join(' ') + '\n';
         }
-        setFullText(text);
+        if (active) setFullText(text);
       } catch (e) {
-        console.error('Context extraction failed', e);
+        if (active) console.error('Context extraction failed', e);
       }
     };
     extract();
+    
+    return () => {
+      active = false;
+      if (localPdf) localPdf.destroy();
+    };
   }, [file]);
+
+  useEffect(() => {
+    (window as any).sendAIFeedback = (msg: string) => {
+       setMessages(prev => [...prev, { role: 'user', content: '[System Hidden Event: ' + msg + ']' }]);
+       // We could auto-trigger send here, but it might interrupt. Let's trigger a background AI thought.
+       setTimeout(() => {
+         // Auto respond
+         handleSendHiddenBackground(msg);
+       }, 500);
+    };
+    return () => {
+      delete (window as any).sendAIFeedback;
+    };
+  }, [fullText, messages, selectedModelId]);
+
+  const handleSendHiddenBackground = async (hiddenEvent: string) => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const currentHistory = [...messages, { role: 'user', content: `[System Event]: ${hiddenEvent}. Keep your response concise.` } as const];
+      setMessages(prev => [...prev, { role: 'ai', content: '' }]);
+      let streamedContent = '';
+      
+      const stream = llmService.queryStream(fullText || 'No document loaded.', currentHistory, selectedModelId);
+      for await (const chunk of stream) {
+        streamedContent += chunk;
+        setMessages(prev => {
+          return [...prev.slice(0, -1), { role: 'ai', content: streamedContent }];
+        });
+      }
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'ai', content: 'Diagnostic error.' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -82,6 +131,23 @@ export default function AIChat({ file }: AIChatProps) {
           const last = prev[prev.length - 1];
           return [...prev.slice(0, -1), { role: 'ai', content: streamedContent }];
         });
+      }
+      
+      // Parse tour command
+      const tourRegex = /<tour\s+steps='(.*?)'\s*\/>/is;
+      const match = streamedContent.match(tourRegex);
+      if (match && match[1]) {
+        try {
+          const parsedSteps = JSON.parse(match[1]);
+          if (Array.isArray(parsedSteps) && typeof (window as any).triggerTour === 'function') {
+            (window as any).triggerTour(parsedSteps);
+            setMinimized(true);
+          }
+          const cleanOutput = streamedContent.replace(tourRegex, '').trim();
+          setMessages(prev => [...prev.slice(0, -1), { role: 'ai', content: cleanOutput }]);
+        } catch(e) {
+          console.error('Failed to parse tour steps', e);
+        }
       }
     } catch (e) {
       setMessages(prev => [...prev, { role: 'ai', content: 'Critical Error: LLM interface failure.' }]);

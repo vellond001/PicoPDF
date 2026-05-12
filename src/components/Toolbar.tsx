@@ -13,7 +13,8 @@ import {
   Move,
   FileText,
   Archive,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Maximize2
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { pdfService } from '../services/pdf';
@@ -85,7 +86,7 @@ export default function Toolbar({
   return (
     <div className="w-full h-auto min-h-[3.5rem] py-2 md:py-0 md:h-14 bg-panel border-b border-border-gold flex flex-wrap md:flex-nowrap items-center justify-between px-4 md:px-6 sticky top-0 z-10 shadow-lg gap-2">
       <div className="flex items-center gap-2">
-        <label className="p-2 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm cursor-pointer transition-all shrink-0" title="Initialize Protocol">
+        <label className="step-toolbar-open p-2 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm cursor-pointer transition-all shrink-0" title="Initialize Protocol">
           <FolderOpen size={16} />
           <input type="file" className="hidden" accept=".pdf" onChange={onFileLoad} />
         </label>
@@ -95,7 +96,7 @@ export default function Toolbar({
         <div className="flex items-center gap-1 md:gap-2">
           <button 
             onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-            className="p-1 md:p-1.5 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm disabled:opacity-10 transition-all font-mono text-[9px] md:text-[10px]"
+            className="step-toolbar-prev p-1 md:p-1.5 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm disabled:opacity-10 transition-all font-mono text-[9px] md:text-[10px]"
             disabled={currentPage <= 1 || !file}
             title="Previous Page (Arrow Left)"
           >
@@ -106,7 +107,7 @@ export default function Toolbar({
           </div>
           <button 
             onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-            className="p-1 md:p-1.5 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm disabled:opacity-10 transition-all font-mono text-[9px] md:text-[10px]"
+            className="step-toolbar-next p-1 md:p-1.5 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm disabled:opacity-10 transition-all font-mono text-[9px] md:text-[10px]"
             disabled={currentPage >= totalPages || !file}
             title="Next Page (Arrow Right)"
           >
@@ -116,7 +117,7 @@ export default function Toolbar({
       </div>
 
       <div className="flex items-center gap-2 md:gap-3 order-3 md:order-2 w-full md:w-auto justify-center md:justify-start">
-        <div className="flex items-center bg-black/40 rounded-sm border border-border-gold/50 p-1 gap-1">
+        <div className="step-toolbar-modes flex items-center bg-black/40 rounded-sm border border-border-gold/50 p-1 gap-1">
           <button 
             onClick={() => onEditModeChange(editMode === 'text' ? 'none' : 'text')}
             className={cn(
@@ -160,7 +161,7 @@ export default function Toolbar({
                 onFileUpdate(updated);
               } catch(e) { console.error(e); }
             }}
-            className="p-1.5 md:p-2 border border-border-gold/40 text-gold hover:bg-gold/10 rounded-sm transition-all"
+            className="step-toolbar-compress p-1.5 md:p-2 border border-border-gold/40 text-gold hover:bg-gold/10 rounded-sm transition-all"
             title="Compress Matrix"
           >
             <Archive size={15} />
@@ -178,7 +179,7 @@ export default function Toolbar({
 
           <button 
             onClick={handleSplit}
-            className="p-1.5 md:p-2 border border-border-gold/40 text-gold hover:bg-gold/10 rounded-sm transition-all"
+            className="step-toolbar-split p-1.5 md:p-2 border border-border-gold/40 text-gold hover:bg-gold/10 rounded-sm transition-all"
             title="Matrix Split"
           >
             <Scissors size={15} />
@@ -206,7 +207,7 @@ export default function Toolbar({
         <div className="flex items-center bg-black/40 rounded-sm border border-border-gold/50 overflow-hidden">
           <button 
             onClick={() => onScaleChange(Math.max(0.25, scale - 0.25))}
-            className="p-1.5 md:p-2 text-gold hover:bg-gold/10 transition-all border-r border-border-gold/30"
+            className="step-toolbar-zoom-out p-1.5 md:p-2 text-gold hover:bg-gold/10 transition-all border-r border-border-gold/30"
             title="Zoom Out (Cmd/Ctrl + -)"
           >
             <ZoomOut size={15} />
@@ -216,10 +217,27 @@ export default function Toolbar({
           </div>
           <button 
             onClick={() => onScaleChange(Math.min(4, scale + 0.25))}
-            className="p-1.5 md:p-2 text-gold hover:bg-gold/10 transition-all border-l border-border-gold/30"
+            className="step-toolbar-zoom-in p-1.5 md:p-2 text-gold hover:bg-gold/10 transition-all border-l border-border-gold/30"
             title="Zoom In (Cmd/Ctrl + +)"
           >
             <ZoomIn size={15} />
+          </button>
+          <button 
+            onClick={() => {
+              if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                  console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+              } else {
+                if (document.exitFullscreen) {
+                  document.exitFullscreen();
+                }
+              }
+            }}
+            className="step-toolbar-fullscreen p-1.5 md:p-2 text-gold hover:bg-gold/10 transition-all border-l border-border-gold/30"
+            title="Toggle Fullscreen"
+          >
+            <Maximize2 size={15} />
           </button>
         </div>
       </div>

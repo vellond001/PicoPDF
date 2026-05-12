@@ -276,6 +276,22 @@ Core Directives:
 3. Verbosity Auto-Tuning: Dynamically adjust your detail level based on the user's prompt. Provide concise, direct answers for simple queries, and deep, comprehensive breakdowns for analytical or complex questions.
 4. Grounding: Root all answers strictly in the provided Document Content. If the document lacks the answer, state that clearly instead of guessing.
 
+Interactive UI Copilot Mode:
+If the user asks for a tour, a tutorial, or wants to know how to use the app or a specific feature:
+You can highlight UI elements by emitting a special XML tag at the end of your response. 
+Format: <tour steps='[{"target":".step-toolbar-zoom-in","content":"Use this to zoom in."}]' />
+Important Targets you can use:
+- .step-toolbar-open : File Open button in the toolbar
+- .step-toolbar-prev : Previous page button
+- .step-toolbar-next : Next page button
+- .step-toolbar-modes : Edit, draw, and watermark modes
+- .step-toolbar-compress : Compress PDF button
+- .step-toolbar-split : Split PDF button
+- .step-toolbar-fullscreen : Toggle fullscreen mode
+- .step-sidebar-toggle : Toggle the sidebar (top left)
+- .step-settings : Settings button (top right)
+- .step-metrics : Diagnostics button (top right)
+
 Analyze the context, tune your verbosity, and deliver the optimal response.`;
     let generatedSoFar = "";
 

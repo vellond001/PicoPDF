@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as pdfjs from 'pdfjs-dist';
 import { pdfService } from '../services/pdf';
 import { cn } from '../lib/utils';
 import { List, Info, Database } from 'lucide-react';

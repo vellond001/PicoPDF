@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { Joyride, Step } from 'react-joyride';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   FileText, 
@@ -52,6 +53,46 @@ export default function App() {
   const [editMode, setEditMode] = useState<'none' | 'text' | 'watermark' | 'draw'>('none');
   const [health, setHealth] = useState(100);
   const [isLiteMode, setIsLiteMode] = useState(false);
+  const [tourSteps, setTourSteps] = useState<Step[]>([]);
+  const [runTour, setRunTour] = useState(false);
+
+  useEffect(() => {
+    (window as any).triggerTour = (steps: any[]) => {
+       // Validate that elements for each step exist in the DOM before setting the tour.
+       const validSteps = steps.filter(step => {
+         try {
+           return step.target && document.querySelector(step.target) !== null;
+         } catch(e) {
+           return false;
+         }
+       });
+
+       if (validSteps.length > 0) {
+         setTourSteps(validSteps);
+         setRunTour(true);
+       } else {
+         if (typeof (window as any).sendAIFeedback === 'function') {
+           (window as any).sendAIFeedback("Failed to start tutorial: I couldn't find the UI elements I tried to highlight. I might need to try different selectors.");
+         }
+       }
+    };
+  }, []);
+
+  const handleJoyrideCallback = (data: any) => {
+    const { status, action } = data;
+    if (['finished', 'skipped'].includes(status)) {
+      setRunTour(false);
+      setTourSteps([]);
+      
+      if (typeof (window as any).sendAIFeedback === 'function') {
+         if (status === 'skipped') {
+           (window as any).sendAIFeedback("The user skipped or closed the tutorial prematurely.");
+         } else {
+           (window as any).sendAIFeedback("The user successfully completed the interactive tutorial.");
+         }
+      }
+    }
+  };
 
   // Mobile detection
   useEffect(() => {
@@ -243,8 +284,66 @@ export default function App() {
   }, [handleExport]);
 
   return (
-    <div className={cn(
-      "flex h-dvh w-dvw flex-col bg-dark-bg text-[#D1D1D1] font-sans overflow-hidden",
+    <>
+      <Joyride 
+        steps={tourSteps} 
+        run={runTour} 
+        onEvent={handleJoyrideCallback} 
+        continuous
+        options={{
+          arrowColor: '#ffffff',
+          backgroundColor: '#ffffff',
+          overlayColor: 'rgba(0, 0, 0, 0.75)',
+          primaryColor: '#D4AF37',
+          textColor: '#1a1a1a',
+          zIndex: 10000,
+          showProgress: true,
+          buttons: ['back', 'close', 'primary', 'skip'] as any[]
+        }}
+        styles={{
+          buttonPrimary: {
+            backgroundColor: '#1a1a1a',
+            color: '#D4AF37',
+            fontFamily: 'monospace',
+            borderRadius: '4px',
+            padding: '8px 16px',
+            fontWeight: 'bold',
+          },
+          buttonBack: {
+            color: '#666',
+            fontFamily: 'monospace',
+            marginRight: '8px',
+          },
+          buttonSkip: {
+            color: '#999',
+            fontFamily: 'monospace',
+            fontSize: '12px',
+          },
+          tooltip: {
+            borderRadius: '8px',
+            padding: '24px',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.6)',
+            textAlign: 'left',
+          },
+          tooltipContainer: {
+            textAlign: 'left',
+          },
+          tooltipTitle: {
+            fontSize: '18px',
+            fontWeight: 'bold',
+            marginBottom: '8px',
+            color: '#1a1a1a',
+          },
+          tooltipContent: {
+            fontSize: '14px',
+            lineHeight: '1.5',
+            color: '#333',
+            textAlign: 'left',
+          }
+        }}
+      />
+      <div className={cn(
+        "flex h-dvh w-dvw flex-col bg-dark-bg text-[#D1D1D1] font-sans overflow-hidden",
       isLiteMode && "lite-mode"
     )} onKeyDown={(e) => {
       // Basic keyboard shortcuts hook if needed, but useEffect is better for global
@@ -257,7 +356,7 @@ export default function App() {
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
           <button 
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-1.5 md:p-2 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm transition-all shrink-0"
+            className="step-sidebar-toggle p-1.5 md:p-2 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm transition-all shrink-0"
             title="Toggle Sidebar (Cmd/Ctrl + B)"
           >
             <Layers size={18} className="md:w-5 md:h-5" />
@@ -308,14 +407,14 @@ export default function App() {
 
             <button 
               onClick={() => setShowMetrics(!showMetrics)}
-              className="shrink-0 border border-border-gold p-1.5 md:p-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm"
+              className="step-metrics shrink-0 border border-border-gold p-1.5 md:p-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm"
               title="Diagnostics"
             >
               <Cpu size={18} className="md:w-5 md:h-5" />
             </button>
             <button 
               onClick={() => setShowSettings(true)}
-              className="shrink-0 border border-border-gold px-2 py-1.5 md:px-3 md:py-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm flex items-center gap-2"
+              className="step-settings shrink-0 border border-border-gold px-2 py-1.5 md:px-3 md:py-2 text-gold hover:bg-gold hover:text-black transition-colors rounded-sm flex items-center gap-2"
               title="API Settings (Cmd/Ctrl + ,)"
             >
               <Settings size={18} className="md:w-5 md:h-5" />
@@ -432,5 +531,6 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }
