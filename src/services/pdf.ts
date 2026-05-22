@@ -16,10 +16,36 @@ export type PDFMetadata = {
   creator?: string;
   keywords?: string[];
   pageCount: number;
+  creationDate?: Date;
+  modificationDate?: Date;
 };
 
 class PDFService {
   private retry = new RetryManager('pdf-service');
+
+  async getMetadata(data: ArrayBuffer): Promise<PDFMetadata> {
+    return this.retry.run(async () => {
+      const pdfDoc = await PDFDocument.load(data, { updateMetadata: false });
+      
+      const keywordsStr = pdfDoc.getKeywords();
+      let keywordsArr: string[] | undefined = undefined;
+      
+      if (keywordsStr) {
+        keywordsArr = keywordsStr.split(/[,; ]+/).filter(k => k.trim().length > 0);
+      }
+
+      return {
+        title: pdfDoc.getTitle(),
+        author: pdfDoc.getAuthor(),
+        subject: pdfDoc.getSubject(),
+        creator: pdfDoc.getCreator(),
+        keywords: keywordsArr,
+        creationDate: pdfDoc.getCreationDate(),
+        modificationDate: pdfDoc.getModificationDate(),
+        pageCount: pdfDoc.getPageCount()
+      };
+    });
+  }
 
   async loadPDF(data: ArrayBuffer): Promise<pdfjs.PDFDocumentProxy> {
     return this.retry.run(async () => {

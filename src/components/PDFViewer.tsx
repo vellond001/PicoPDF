@@ -13,9 +13,10 @@ interface PDFViewerProps {
   editMode: 'none' | 'text' | 'watermark' | 'draw';
   onUpdate: (data: Uint8Array) => void;
   highlightBBox?: any;
+  refreshKey?: number;
 }
 
-export default function PDFViewer({ file, page, scale, editMode, onUpdate, highlightBBox }: PDFViewerProps) {
+export default function PDFViewer({ file, page, scale, editMode, onUpdate, highlightBBox, refreshKey }: PDFViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pdf, setPdf] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(false);
@@ -201,7 +202,7 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
         localPdf.destroy();
       }
     };
-  }, [file]);
+  }, [file, refreshKey]);
 
   useEffect(() => {
     const render = async () => {

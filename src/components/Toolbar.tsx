@@ -15,7 +15,8 @@ import {
   Archive,
   Image as ImageIcon,
   Maximize2,
-  Search
+  Search,
+  Info
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { pdfService } from '../services/pdf';
@@ -35,6 +36,7 @@ interface ToolbarProps {
   fileName: string;
   onFileUpdate: (data: Uint8Array) => void;
   onToggleSearch: () => void;
+  onShowMetadata: () => void;
 }
 
 export default function Toolbar({ 
@@ -49,7 +51,8 @@ export default function Toolbar({
   onEditModeChange,
   fileName,
   onFileUpdate,
-  onToggleSearch
+  onToggleSearch,
+  onShowMetadata
 }: ToolbarProps) {
 
   const handleAddPageNumbers = async () => {
@@ -123,6 +126,15 @@ export default function Toolbar({
 
       <div className="flex items-center gap-2 md:gap-3 order-3 md:order-2 w-full md:w-auto justify-center md:justify-start">
         <ShortcutsHelp />
+
+        <button
+          onClick={onShowMetadata}
+          className="p-1.5 md:p-2 bg-black/40 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm transition-all"
+          disabled={!file}
+          title="Document Metadata (Cmd/Ctrl + I)"
+        >
+          <Info size={15} />
+        </button>
 
         <button
           onClick={onToggleSearch}

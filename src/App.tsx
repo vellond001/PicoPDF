@@ -32,6 +32,7 @@ import OrganiserPanel from './components/OrganiserPanel';
 import SettingsOverlay from './components/SettingsOverlay';
 import AboutOverlay from './components/AboutOverlay';
 import SearchOverlay from './components/SearchOverlay';
+import MetadataModal from './components/MetadataModal';
 import { cn } from './lib/utils';
 import { AccessGate } from './components/AccessGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -53,9 +54,11 @@ export default function App() {
   const [showTokenPanel, setShowTokenPanel] = useState(false);
   const [showOrganiser, setShowOrganiser] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMetadata, setShowMetadata] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [highlightBBox, setHighlightBBox] = useState<any>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [editMode, setEditMode] = useState<'none' | 'text' | 'watermark' | 'draw'>('none');
   const [health, setHealth] = useState(100);
   const [isLiteMode, setIsLiteMode] = useState(false);
@@ -207,6 +210,7 @@ export default function App() {
       if (e.key === 'Escape') {
         setShowSettings(false);
         setShowAbout(false);
+        setShowMetadata(false);
         setShowOrganiser(false);
         setShowTokenPanel(false);
         setShowMetrics(false);
@@ -240,6 +244,10 @@ export default function App() {
               }
             }
             break;
+          case 'r':
+            e.preventDefault();
+            setRefreshKey(prev => prev + 1);
+            break;
           case 'z':
             e.preventDefault();
             if (e.shiftKey) {
@@ -259,6 +267,10 @@ export default function App() {
           case 'b':
             e.preventDefault();
             setSidebarOpen(prev => !prev);
+            break;
+          case 'i':
+            e.preventDefault();
+            setShowMetadata(true);
             break;
           case 's':
             e.preventDefault();
@@ -478,6 +490,7 @@ export default function App() {
             fileName={fileName}
             onFileUpdate={onFileUpdate}
             onToggleSearch={() => setShowSearch(!showSearch)}
+            onShowMetadata={() => setShowMetadata(true)}
           />
 
           <div className="flex-1 w-full overflow-auto p-8 custom-scrollbar relative">
@@ -489,6 +502,7 @@ export default function App() {
                 editMode={editMode}
                 onUpdate={onFileUpdate}
                 highlightBBox={highlightBBox}
+                refreshKey={refreshKey}
               />
             ) : (
               <div className="h-full flex items-center justify-center">
@@ -517,6 +531,11 @@ export default function App() {
                 />
               )}
             </AnimatePresence>
+            <MetadataModal 
+              isOpen={showMetadata}
+              onClose={() => setShowMetadata(false)}
+              file={file}
+            />
           </div>
         </div>
 
