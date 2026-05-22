@@ -18,6 +18,19 @@ class OCRService {
     });
   }
 
+  async getWords(image: any) {
+    return this.retry.run(async () => {
+      if (!this.worker) {
+        this.worker = await createWorker('eng', 1, {
+          logger: m => console.log(m)
+        });
+      }
+      
+      const { data } = await this.worker.recognize(image);
+      return (data as any).words;
+    });
+  }
+
   async terminate() {
     if (this.worker) {
       await this.worker.terminate();

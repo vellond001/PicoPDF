@@ -31,9 +31,13 @@ import TokenPanel from './components/TokenPanel';
 import OrganiserPanel from './components/OrganiserPanel';
 import SettingsOverlay from './components/SettingsOverlay';
 import AboutOverlay from './components/AboutOverlay';
+import SearchOverlay from './components/SearchOverlay';
 import { cn } from './lib/utils';
+import { AccessGate } from './components/AccessGate';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
+  const [hasAccess, setHasAccess] = useState(false);
   const [history, setHistory] = useState<{ past: ArrayBuffer[], present: ArrayBuffer | null, future: ArrayBuffer[] }>({
     past: [],
     present: null,
@@ -50,6 +54,8 @@ export default function App() {
   const [showOrganiser, setShowOrganiser] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [highlightBBox, setHighlightBBox] = useState<any>(null);
   const [editMode, setEditMode] = useState<'none' | 'text' | 'watermark' | 'draw'>('none');
   const [health, setHealth] = useState(100);
   const [isLiteMode, setIsLiteMode] = useState(false);
@@ -284,10 +290,14 @@ export default function App() {
   }, [handleExport]);
 
   return (
-    <>
-      <Joyride 
-        steps={tourSteps} 
-        run={runTour} 
+    <ErrorBoundary onResetSession={() => setHasAccess(false)}>
+      {!hasAccess ? (
+        <AccessGate onAccessGranted={() => setHasAccess(true)} />
+      ) : (
+        <>
+          <Joyride 
+            steps={tourSteps} 
+            run={runTour} 
         onEvent={handleJoyrideCallback} 
         continuous
         options={{
@@ -467,9 +477,10 @@ export default function App() {
             onEditModeChange={setEditMode}
             fileName={fileName}
             onFileUpdate={onFileUpdate}
+            onToggleSearch={() => setShowSearch(!showSearch)}
           />
 
-          <div className="flex-1 w-full overflow-auto p-8 custom-scrollbar">
+          <div className="flex-1 w-full overflow-auto p-8 custom-scrollbar relative">
             {file ? (
               <PDFViewer 
                 file={file} 
@@ -477,6 +488,7 @@ export default function App() {
                 scale={scale}
                 editMode={editMode}
                 onUpdate={onFileUpdate}
+                highlightBBox={highlightBBox}
               />
             ) : (
               <div className="h-full flex items-center justify-center">
@@ -490,6 +502,21 @@ export default function App() {
                 </div>
               </div>
             )}
+            <AnimatePresence>
+              {showSearch && (
+                <SearchOverlay 
+                  file={file} 
+                  onClose={() => {
+                    setShowSearch(false);
+                    setHighlightBBox(null);
+                  }}
+                  onResultClick={(page, res) => {
+                    setCurrentPage(page);
+                    setHighlightBBox(res);
+                  }}
+                />
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -532,5 +559,7 @@ export default function App() {
       </AnimatePresence>
     </div>
     </>
+    )}
+    </ErrorBoundary>
   );
 }

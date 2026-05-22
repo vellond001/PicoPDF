@@ -12,9 +12,10 @@ interface PDFViewerProps {
   scale: number;
   editMode: 'none' | 'text' | 'watermark' | 'draw';
   onUpdate: (data: Uint8Array) => void;
+  highlightBBox?: any;
 }
 
-export default function PDFViewer({ file, page, scale, editMode, onUpdate }: PDFViewerProps) {
+export default function PDFViewer({ file, page, scale, editMode, onUpdate, highlightBBox }: PDFViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pdf, setPdf] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [loading, setLoading] = useState(false);
@@ -425,6 +426,19 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate }: PDF
               onBlur={handleTextCommit} // save on focus loss
             />
           </form>
+        )}
+
+        {/* OCR Canvas Highlight */}
+        {highlightBBox && (
+          <div 
+            className="absolute z-20 border-2 border-gold bg-gold/20 shadow-[0_0_10px_rgba(255,215,0,0.5)] pointer-events-none transition-all duration-300 rounded"
+            style={{
+              left: (highlightBBox.bbox.x0 / (window.devicePixelRatio || 1)) * (scale / highlightBBox.scale),
+              top: (highlightBBox.bbox.y0 / (window.devicePixelRatio || 1)) * (scale / highlightBBox.scale),
+              width: ((highlightBBox.bbox.x1 - highlightBBox.bbox.x0) / (window.devicePixelRatio || 1)) * (scale / highlightBBox.scale),
+              height: ((highlightBBox.bbox.y1 - highlightBBox.bbox.y0) / (window.devicePixelRatio || 1)) * (scale / highlightBBox.scale)
+            }}
+          />
         )}
       </div>
 

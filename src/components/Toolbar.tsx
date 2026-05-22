@@ -14,10 +14,13 @@ import {
   FileText,
   Archive,
   Image as ImageIcon,
-  Maximize2
+  Maximize2,
+  Search
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { pdfService } from '../services/pdf';
+
+import ShortcutsHelp from './ShortcutsHelp';
 
 interface ToolbarProps {
   file: ArrayBuffer | null;
@@ -31,6 +34,7 @@ interface ToolbarProps {
   onEditModeChange: (mode: 'none' | 'text' | 'watermark' | 'draw') => void;
   fileName: string;
   onFileUpdate: (data: Uint8Array) => void;
+  onToggleSearch: () => void;
 }
 
 export default function Toolbar({ 
@@ -44,7 +48,8 @@ export default function Toolbar({
   editMode,
   onEditModeChange,
   fileName,
-  onFileUpdate
+  onFileUpdate,
+  onToggleSearch
 }: ToolbarProps) {
 
   const handleAddPageNumbers = async () => {
@@ -117,6 +122,19 @@ export default function Toolbar({
       </div>
 
       <div className="flex items-center gap-2 md:gap-3 order-3 md:order-2 w-full md:w-auto justify-center md:justify-start">
+        <ShortcutsHelp />
+
+        <button
+          onClick={onToggleSearch}
+          className="p-1.5 md:p-2 bg-black/40 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm transition-all"
+          disabled={!file}
+          title="Search Content"
+        >
+          <Search size={15} />
+        </button>
+
+        <div className="w-[1px] h-6 bg-gold opacity-10 mx-1" />
+
         <div className="step-toolbar-modes flex items-center bg-black/40 rounded-sm border border-border-gold/50 p-1 gap-1">
           <button 
             onClick={() => onEditModeChange(editMode === 'text' ? 'none' : 'text')}
