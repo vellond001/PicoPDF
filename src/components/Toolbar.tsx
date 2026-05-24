@@ -93,12 +93,14 @@ export default function Toolbar({
   };
 
   return (
-    <motion.div 
-      initial={{ y: -50, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="w-full h-auto min-h-[3.5rem] py-2 md:py-0 md:h-14 bg-panel border-b border-border-gold flex flex-wrap md:flex-nowrap items-center justify-between px-4 md:px-6 sticky top-0 z-10 shadow-lg gap-2"
-    >
+    <AnimatePresence>
+      {file && (
+        <motion.div 
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="w-full h-auto min-h-[3.5rem] py-2 md:py-0 md:h-14 bg-panel border-b border-border-gold flex flex-wrap md:flex-nowrap items-center justify-between px-4 md:px-6 sticky top-0 z-10 shadow-lg gap-2"
+        >
           <div className="flex items-center gap-2">
             <label className="step-toolbar-open p-2 border border-border-gold text-gold hover:bg-gold hover:text-black rounded-sm cursor-pointer transition-all shrink-0" title="Initialize Protocol">
               <FolderOpen size={16} />
@@ -278,5 +280,7 @@ export default function Toolbar({
             </div>
           </div>
         </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -1,7 +1,7 @@
 // src/firebase.ts
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 import localConfig from "../firebase-applet-config.json";
 
 const resolveConfigValue = (envVal: string | undefined, localVal: string | undefined) => {
@@ -27,7 +27,9 @@ try {
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app, localConfig?.firestoreDatabaseId);
+    db = initializeFirestore(app, {
+      experimentalForceLongPolling: true
+    }, localConfig?.firestoreDatabaseId);
   } else {
     throw new Error("Missing config");
   }

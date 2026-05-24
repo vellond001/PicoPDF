@@ -39,7 +39,7 @@ import { AccessGate } from './components/AccessGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
-  const [hasAccess, setHasAccess] = useState(false);
+  const [hasAccess, setHasAccess] = useState(true);
   const [history, setHistory] = useState<{ past: ArrayBuffer[], present: ArrayBuffer | null, future: ArrayBuffer[] }>({
     past: [],
     present: null,

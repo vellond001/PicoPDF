@@ -1,3 +1,4 @@
+import { getFirestore } from 'firebase-admin/firestore';
 import express from 'express';
 import crypto from 'crypto';
 import * as admin from 'firebase-admin';
@@ -126,7 +127,7 @@ app.post('/api/paypal/capture-order', async (req, res) => {
       // Mock success capture
       const fbAdmin = getFirebaseAdmin();
       if (fbAdmin && userUid) {
-        const db = fbAdmin.firestore();
+        const db = getFirestore(fbAdmin, "ai-studio-ae663bcf-c51c-4eaa-9aaf-27f99842f5f5");
         await db.collection("users").doc(userUid).set({
           premiumState: true,
           credits: admin.firestore.FieldValue.increment(100),
@@ -151,7 +152,7 @@ app.post('/api/paypal/capture-order', async (req, res) => {
     if (captureData.status === "COMPLETED") {
       const fbAdmin = getFirebaseAdmin();
       if (fbAdmin && userUid) {
-        const db = fbAdmin.firestore();
+        const db = getFirestore(fbAdmin, "ai-studio-ae663bcf-c51c-4eaa-9aaf-27f99842f5f5");
         await db.collection("users").doc(userUid).set({
           premiumState: true,
           credits: admin.firestore.FieldValue.increment(100),
