@@ -12,7 +12,7 @@ interface AccessGateProps {
 }
 
 export function AccessGate({ onAccessGranted }: AccessGateProps) {
-  const [stage, setStage] = useState<'auth' | 'paywall'>('auth');
+  const [stage, setStage] = useState<'selection' | 'auth' | 'paywall'>('selection');
   const [user, setUser] = useState<any>(null);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -91,10 +91,10 @@ export function AccessGate({ onAccessGranted }: AccessGateProps) {
           <Sparkles className="w-6 h-6 text-indigo-600" />
         </div>
         <h2 className="text-3xl font-bold tracking-tight text-neutral-900">
-          Sign In
+          {stage === 'selection' ? 'Choose Edition' : (stage === 'auth' ? 'Sign In' : 'Cloud Tier')}
         </h2>
         <p className="mt-2 text-sm text-neutral-500">
-          to continue to your secure workspace.
+          {stage === 'selection' ? 'Select how you want to run your workspace.' : (stage === 'auth' ? 'to continue to your secure workspace.' : 'Upgrade your account for cloud capabilities.')}
         </p>
       </div>
 
@@ -107,8 +107,51 @@ export function AccessGate({ onAccessGranted }: AccessGateProps) {
           )}
 
           <AnimatePresence mode="wait">
+            {stage === 'selection' && (
+              <motion.div key="selection" initial={{opacity: 0, scale: 0.95}} animate={{opacity: 1, scale: 1}} exit={{opacity: 0, scale: 0.95}}>
+                <div className="space-y-4">
+                  <button 
+                    onClick={() => onAccessGranted()}
+                    className="w-full text-left p-4 rounded-xl border-2 border-neutral-200 hover:border-neutral-900 hover:bg-neutral-50 transition-all flex items-start gap-4"
+                  >
+                    <div className="p-2 bg-neutral-100 rounded-lg shrink-0">
+                      <Lock className="w-6 h-6 text-neutral-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-neutral-900">Local (BYOK) Edition</h3>
+                      <p className="text-sm text-neutral-500 mt-1">Bring your own API key. Run fully locally in your browser without an account.</p>
+                    </div>
+                  </button>
+
+                  <button 
+                    onClick={() => setStage('auth')}
+                    className="w-full text-left p-4 rounded-xl border-2 border-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all flex items-start gap-4 relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg uppercase tracking-wider">
+                      Recommended
+                    </div>
+                    <div className="p-2 bg-indigo-100 rounded-lg shrink-0">
+                      <Globe className="w-6 h-6 text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-indigo-900">PRO Edition</h3>
+                      <p className="text-sm text-indigo-800/80 mt-1">Cloud execution and database sync. Account required.</p>
+                    </div>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
             {stage === 'auth' && (
               <motion.div key="auth" initial={{opacity: 0, x: -10}} animate={{opacity: 1, x: 0}} exit={{opacity: 0, x: 10}}>
+                <div className="mb-4">
+                  <button 
+                    onClick={() => setStage('selection')}
+                    className="text-sm font-medium text-neutral-500 hover:text-indigo-600 transition-colors flex items-center gap-1"
+                  >
+                    <span>&larr;</span> Back
+                  </button>
+                </div>
                 <form onSubmit={handleEmailAuth} className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-1">Email address</label>

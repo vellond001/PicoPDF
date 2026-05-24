@@ -24,6 +24,48 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
   const [drawingPath, setDrawingPath] = useState<{ x: number, y: number }[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   
+  // Panning states
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [scrollStart, setScrollStart] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if user is typing in an input field
+      if (e.code === 'Space' && e.target instanceof HTMLElement && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault(); // prevent page scroll
+        setIsSpacePressed(true);
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+        setIsPanning(false);
+      }
+    };
+    
+    // Add global listener to make sure space released outside the window is caught
+    const handleWindowBlur = () => {
+      setIsSpacePressed(false);
+      setIsPanning(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, []);
+
+  const getScrollContainer = () => {
+    if (!containerRef.current) return null;
+    return containerRef.current.closest('.overflow-auto') as HTMLElement;
+  };
+  
   // Text editing states
   const [textItems, setTextItems] = useState<any[]>([]);
   const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -79,6 +121,7 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
   };
 
   const handleClick = async (e: React.MouseEvent) => {
+    if (isSpacePressed || isPanning) return;
     if (editMode === 'none' || !containerRef.current) return;
 
     const canvas = containerRef.current.querySelector('canvas');
@@ -137,6 +180,17 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (isSpacePressed || e.button === 1) {
+      if (e.button === 1) e.preventDefault(); // prevent auto-scroll cursor
+      const scrollContainer = getScrollContainer();
+      if (scrollContainer) {
+        setIsPanning(true);
+        setPanStart({ x: e.clientX, y: e.clientY });
+        setScrollStart({ x: scrollContainer.scrollLeft, y: scrollContainer.scrollTop });
+        return;
+      }
+    }
+
     if (editMode !== 'draw' || !containerRef.current) return;
     setIsDrawing(true);
     const canvas = containerRef.current.querySelector('canvas');
@@ -150,6 +204,17 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanning) {
+      const scrollContainer = getScrollContainer();
+      if (scrollContainer) {
+        const dx = e.clientX - panStart.x;
+        const dy = e.clientY - panStart.y;
+        scrollContainer.scrollLeft = scrollStart.x - dx;
+        scrollContainer.scrollTop = scrollStart.y - dy;
+        return;
+      }
+    }
+
     if (!isDrawing || editMode !== 'draw' || !containerRef.current) return;
     const canvas = containerRef.current.querySelector('canvas');
     if (!canvas) return;
@@ -162,6 +227,11 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
   };
 
   const handleMouseUp = async () => {
+    if (isPanning) {
+      setIsPanning(false);
+      return;
+    }
+
     if (!isDrawing || editMode !== 'draw' || drawingPath.length < 2) {
       setIsDrawing(false);
       setDrawingPath([]);
@@ -344,12 +414,48 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
       <AnimatePresence>
         {loading && (
           <motion.div 
+            key="skeleton-loader"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-10 flex items-center justify-center bg-white/20 backdrop-blur-sm"
+            className="absolute inset-0 z-10 bg-white shadow-sm overflow-hidden"
           >
-            <Loader2 className="animate-spin text-[#141414]" size={48} />
+            <div className="w-full h-full p-12 md:p-16 flex flex-col gap-6 animate-pulse opacity-40">
+              {/* Header skeleton */}
+              <div className="flex justify-between items-start mb-8">
+                <div className="w-1/3 h-8 bg-neutral-200 rounded"></div>
+                <div className="w-16 h-8 bg-neutral-200 rounded"></div>
+              </div>
+              
+              {/* Content block 1 */}
+              <div className="space-y-3">
+                <div className="w-full h-4 bg-neutral-200 rounded"></div>
+                <div className="w-full h-4 bg-neutral-200 rounded"></div>
+                <div className="w-5/6 h-4 bg-neutral-200 rounded"></div>
+                <div className="w-4/5 h-4 bg-neutral-200 rounded"></div>
+              </div>
+              
+              {/* Image/Graph skeleton */}
+              <div className="w-full h-64 bg-neutral-200 rounded my-8 flex items-center justify-center">
+                <div className="w-16 h-16 bg-neutral-300 rounded-full opacity-50"></div>
+              </div>
+              
+              {/* Content block 2 */}
+              <div className="space-y-3">
+                <div className="w-full h-4 bg-neutral-200 rounded"></div>
+                <div className="w-full h-4 bg-neutral-200 rounded"></div>
+                <div className="w-11/12 h-4 bg-neutral-200 rounded"></div>
+              </div>
+
+              {/* Grid skeleton */}
+              <div className="grid grid-cols-2 gap-4 mt-8">
+                <div className="h-24 bg-neutral-200 rounded"></div>
+                <div className="h-24 bg-neutral-200 rounded"></div>
+              </div>
+            </div>
+            
+            {/* Shimmer effect overlay */}
+            <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent pointer-events-none"></div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -370,6 +476,7 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
           onMouseLeave={handleMouseUp}
           className={cn(
             "bg-white transition-transform duration-300 relative",
+            isPanning ? "cursor-grabbing" : isSpacePressed ? "cursor-grab" :
             editMode !== 'none' ? "cursor-crosshair" : "cursor-default"
           )}
         />
@@ -457,6 +564,7 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
       <AnimatePresence>
         {editMode === 'text' && (
           <motion.div
+            key="formatting-toolbar"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}

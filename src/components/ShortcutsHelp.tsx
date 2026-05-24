@@ -95,6 +95,15 @@ export default function ShortcutsHelp() {
                 </div>
 
                 <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                  <span className="text-sm font-bold opacity-80">Pan View</span>
+                  <div className="flex gap-1">
+                    <kbd className="px-2 py-1 bg-black/50 border border-white/20 rounded text-xs font-mono">Space</kbd>
+                    <span className="text-white/50">+</span>
+                    <kbd className="px-2 py-1 bg-black/50 border border-white/20 rounded text-xs font-mono">Drag</kbd>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center border-b border-white/10 pb-2">
                   <span className="text-sm font-bold opacity-80">Undo</span>
                   <div className="flex gap-1">
                     <kbd className="px-2 py-1 bg-black/50 border border-white/20 rounded text-xs font-mono">Cmd/Ctrl</kbd>

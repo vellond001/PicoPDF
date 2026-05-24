@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Joyride, Step } from 'react-joyride';
 import { motion, AnimatePresence } from 'motion/react';
+import { get, set } from 'idb-keyval';
 import { 
   FileText, 
   Settings, 
@@ -64,6 +65,48 @@ export default function App() {
   const [isLiteMode, setIsLiteMode] = useState(false);
   const [tourSteps, setTourSteps] = useState<Step[]>([]);
   const [runTour, setRunTour] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Auto-Save feature
+  useEffect(() => {
+    // Attempt to load from IndexedDB on initial mount
+    const loadSavedDoc = async () => {
+      try {
+        const savedBuffer = await get('saved-pdf');
+        if (savedBuffer && !file) {
+          setHistory({ past: [], present: savedBuffer, future: [] });
+          setFileName('Restored_Document.pdf');
+        }
+      } catch (err) {
+        console.error('Failed to restore document', err);
+      }
+    };
+    loadSavedDoc();
+  }, []); // Only on mount
+
+  useEffect(() => {
+    // Save to IndexedDB at regular intervals if file exists
+    const saveObj = async () => {
+      if (file) {
+        try {
+          await set('saved-pdf', file);
+          setLastSaved(new Date());
+        } catch (err) {
+          console.error('Failed to auto-save', err);
+        }
+      }
+    };
+
+    // Save immediately when file updates
+    saveObj();
+
+    // And also save on an interval
+    const interval = setInterval(() => {
+      saveObj();
+    }, 15000); // 15 seconds
+
+    return () => clearInterval(interval);
+  }, [file]);
 
   useEffect(() => {
     (window as any).triggerTour = (steps: any[]) => {
@@ -548,6 +591,11 @@ export default function App() {
         <div className="flex gap-4 md:gap-6">
           <span className="text-[8px] md:text-[9px] tracking-widest uppercase opacity-40 truncate max-w-[150px] md:max-w-none">Support: security@omniengine.internal</span>
           <span className="hidden sm:inline text-[9px] tracking-widest uppercase opacity-40">Author: {awareness.getConfidence('UI') > 0.8 ? 'Integrity Orchestrator' : 'Assessment Engine'}</span>
+          {lastSaved && (
+             <span className="hidden sm:inline text-[9px] tracking-widest uppercase text-gold opacity-60">
+               Auto-Saved: {lastSaved.toLocaleTimeString()}
+             </span>
+          )}
         </div>
         <div className="flex items-center gap-2 md:gap-4">
           <div className="flex gap-1">
