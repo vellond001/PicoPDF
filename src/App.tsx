@@ -37,6 +37,7 @@ import MetadataModal from './components/MetadataModal';
 import { cn } from './lib/utils';
 import { AccessGate } from './components/AccessGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { HistoryTimeline } from './components/HistoryTimeline';
 
 export default function App() {
   const [hasAccess, setHasAccess] = useState(true);
@@ -207,6 +208,26 @@ export default function App() {
       return {
         past: [...prev.past, prev.present],
         present: next,
+        future: newFuture
+      };
+    });
+  }, []);
+
+  const jumpToHistory = useCallback((index: number) => {
+    setHistory(prev => {
+      if (!prev.present) return prev;
+      const allStates = [...prev.past, prev.present, ...prev.future];
+      if (index < 0 || index >= allStates.length || index === prev.past.length) {
+        return prev;
+      }
+      
+      const newPast = allStates.slice(0, index);
+      const newPresent = allStates[index];
+      const newFuture = allStates.slice(index + 1);
+      
+      return {
+        past: newPast,
+        present: newPresent,
         future: newFuture
       };
     });
@@ -534,6 +555,13 @@ export default function App() {
             onFileUpdate={onFileUpdate}
             onToggleSearch={() => setShowSearch(!showSearch)}
             onShowMetadata={() => setShowMetadata(true)}
+          />
+
+          <HistoryTimeline 
+             history={history} 
+             onJump={jumpToHistory} 
+             onUndo={undo} 
+             onRedo={redo} 
           />
 
           <div className="flex-1 w-full overflow-auto p-8 custom-scrollbar relative">

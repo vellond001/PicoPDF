@@ -466,7 +466,15 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
         </div>
       )}
 
-      <div className="relative shadow-[0_20px_50px_rgba(0,0,0,0.2)] inline-block">
+      <motion.div 
+        className="relative shadow-[0_20px_50px_rgba(0,0,0,0.2)] inline-block"
+        animate={{ 
+          opacity: loading ? 0 : 1, 
+          scale: loading ? 0.98 : 1,
+          y: loading ? 10 : 0
+        }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+      >
         <div 
           ref={containerRef} 
           onClick={handleClick}
@@ -548,7 +556,7 @@ export default function PDFViewer({ file, page, scale, editMode, onUpdate, highl
             }}
           />
         )}
-      </div>
+      </motion.div>
 
       {/* Editing Overlay (Visual purely for demo in this turn, real edits in next steps) */}
       {editMode === 'text' && (
